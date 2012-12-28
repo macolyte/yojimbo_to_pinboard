@@ -9,7 +9,7 @@ with open(file_name) as yojimbo_data:
 	bookmarks = yojimbo_data.readlines()
 
 for bookmark in bookmarks:
-	bookmark = bookmark.split(",")
+	bookmark = bookmark.split("PINBOARD!")
 	_name = bookmark[0] if bookmark[0] else bookmark[1]
 	_url = bookmark[1]
 	_tags = bookmark[2].split(":")
