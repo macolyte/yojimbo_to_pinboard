@@ -18,7 +18,7 @@ tell application "Yojimbo"
 		set _tags to _tags as text
 		set AppleScript's text item delimiters to old_delim
 		
-		do shell script "echo " & _name & "," & _URL & "," & _tags & " >> " & ex_file
+		do shell script "echo " & quoted form of _name & "," & quoted form of _URL & "," & quoted form of _tags & " >> " & ex_file
 	end repeat
 end tell
 
