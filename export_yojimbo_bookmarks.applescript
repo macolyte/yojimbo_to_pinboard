@@ -1,39 +1,60 @@
-set PB_USER to "username"
-set PB_PASS to "password"
+set PINBOARD_USERNAME to "username"
+set PINBOARD_PASSWORD to "password"
 
-tell application "Finder" to get folder of (path to me) as Unicode text
-set workingDir to POSIX path of result
-set ex_file to workingDir & "export.txt"
-
-(*
-python.py will parse each line of your bookmark export file
-and split on this field_delimiter.
-*)
-set field_delimiter to "PINBOARD!"
-
-(*
-Your Yojimbo bookmarks will be exported to export.txt. 1 line = 1 bookmark. I.e.,
-<title><field_delimiter><url><field_delimiter><colon_separated_tags>
-Here's an example:
-The Slow Obviation of YojimboPINBOARD!http://shawnblanc.net/2012/08/the-slow-obviation-of-yojimbo/PINBOARD!hack:awesomeness
-*)
 tell application "Yojimbo"
-	empty trash
-	set the_list to every bookmark item
-	repeat with _item in the_list
-		set _name to name of _item
-		set _URL to location of _item
-		set _tags to name of every tag of _item
+	empty trash (* Deleted bookmarks will be exported without this *)
+	set exported_bookmark_count to 0
+	set bookmarks to every bookmark item
+	repeat with bookmark in bookmarks
+		set _description to urlencode(name of bookmark) of me
+		set _url to urlencode(location of bookmark) of me
+		set _tags to name of every tag of bookmark
 
-		set old_delim to AppleScript's text item delimiters
-		set AppleScript's text item delimiters to ":"
-		set _tags to _tags as text
-		set AppleScript's text item delimiters to old_delim
+		set AppleScript's text item delimiters to ","
+		set _tags to urlencode(_tags as text) of me
 
-		do shell script "echo " & quoted form of _name & field_delimiter & quoted form of _URL & field_delimiter & quoted form of _tags & " >> " & ex_file
+		set _api_response to (do shell script "curl --user " & PINBOARD_USERNAME & ":" & PINBOARD_PASSWORD & " 'https://api.pinboard.in/v1/posts/add?description=" & _description & "&url=" & _url & "&tags=" & _tags & "'")
+
+		if _api_response = "401 Forbidden" then display dialog "Your bookmarks could not be exported. Make sure your Pinboard username and password are correct." buttons {"OK"} cancel button 1
+
+		if _api_response contains "<result code=\"done\" />" then set exported_bookmark_count to exported_bookmark_count + 1
+
 	end repeat
 end tell
 
-do shell script "python " & workingDir & "import.py " & workingDir & " " & PB_USER & " " & PB_PASS
+if exported_bookmark_count > 1 then
+	set bookmark_string to "bookmarks"
+else
+	set bookmark_string to "bookmark"
+end if
+display dialog "Successfully exported " & exported_bookmark_count & " " & bookmark_string & " (out of " & (count bookmarks) & ")." buttons {"Awesome!"}
 
-display dialog "All Done"
+(*
+  Pinboard API arguments should be passed URL-encoded.
+  A neat Applescript implementation can be found at http://harvey.nu/applescript_url_encode_routine.html and is copied below.
+*)
+on urlencode(theText)
+	set theTextEnc to ""
+	repeat with eachChar in characters of theText
+		set useChar to eachChar
+		set eachCharNum to ASCII number of eachChar
+		if eachCharNum = 32 then
+			set useChar to "+"
+		else if (eachCharNum ­ 42) and (eachCharNum ­ 95) and (eachCharNum < 45 or eachCharNum > 46) and (eachCharNum < 48 or eachCharNum > 57) and (eachCharNum < 65 or eachCharNum > 90) and (eachCharNum < 97 or eachCharNum > 122) then
+			set firstDig to round (eachCharNum / 16) rounding down
+			set secondDig to eachCharNum mod 16
+			if firstDig > 9 then
+				set aNum to firstDig + 55
+				set firstDig to ASCII character aNum
+			end if
+			if secondDig > 9 then
+				set aNum to secondDig + 55
+				set secondDig to ASCII character aNum
+			end if
+			set numHex to ("%" & (firstDig as string) & (secondDig as string)) as string
+			set useChar to numHex
+		end if
+		set theTextEnc to theTextEnc & useChar as string
+	end repeat
+	return theTextEnc
+end urlencode
