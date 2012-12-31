@@ -1,5 +1,8 @@
-set PINBOARD_USERNAME to "username"
-set PINBOARD_PASSWORD to "password"
+display dialog "Please enter your Pinboard username:" default answer "" buttons {"Quit", "Continue"} cancel button 1 default button 2
+set pinboard_username to (text returned of result)
+
+display dialog "Please enter your Pinboard password:" default answer "" buttons {"Quit", "Continue"} cancel button 1 default button 2 with hidden answer
+set pinboard_password to (text returned of result)
 
 tell application "Yojimbo"
 	empty trash (* Deleted bookmarks will be exported without this *)
@@ -13,9 +16,9 @@ tell application "Yojimbo"
 		set AppleScript's text item delimiters to ","
 		set _tags to urlencode(_tags as text) of me
 
-		set _api_response to (do shell script "curl --user " & PINBOARD_USERNAME & ":" & PINBOARD_PASSWORD & " 'https://api.pinboard.in/v1/posts/add?description=" & _description & "&url=" & _url & "&tags=" & _tags & "'")
+		set _api_response to (do shell script "curl --user " & pinboard_username & ":" & pinboard_password & " 'https://api.pinboard.in/v1/posts/add?description=" & _description & "&url=" & _url & "&tags=" & _tags & "'")
 
-		if _api_response = "401 Forbidden" then display dialog "Your bookmarks could not be exported. Make sure your Pinboard username and password are correct." buttons {"OK"} cancel button 1
+		if _api_response = "401 Forbidden" then display dialog "Invalid Pinboard username/password. Your bookmarks could not be exported." with icon 2 buttons {"Quit"} cancel button 1 default button 1
 
 		if _api_response contains "<result code=\"done\" />" then set exported_bookmark_count to exported_bookmark_count + 1
 
